@@ -781,17 +781,6 @@ qed
 qed*)
 
 
-theorem clone_list_length: "length (clone n x) = n" proof(induct n)
-  case 0
-  then show ?case 
-    by simp
-next
-  case (Suc n)
-  then show ?case 
-    by simp
-qed
-
-
 theorem
   assumes "0 \<le> i"
   shows "real (bits_to_nat (adc w i)) \<le> i"
@@ -799,38 +788,7 @@ proof -
   have "real (bits_to_nat (adc w i)) = real (bits_to_nat (adc_helper i ([], clone w False)))" 
     using adc_def by auto 
   have "bits_to_nat ([] @ clone w False) = backward_bits_to_nat(clone w False @ [])" using rev_clone 
-    by (metis append.left_neutral append.right_neutral bits_to_nat_def) 
-  then have "... = 0" using bool_list_bit_shift 
-    using backward_bits_to_nat.simps(3) by presburger
-  then have "real(bits_to_nat ([] @ clone w False)) \<le> i"  
-    using \<open>bits_to_nat ([] @ clone w False) = backward_bits_to_nat (clone w False @ [])\<close> assms by force
-  {assume "w > 0"
-    have "length (clone w False) = w" using clone_list_length 
-      by metis
-    then have "... > 0" 
-      by (simp add: \<open>0 < w\<close>)
-    then have "clone w False = clone (length (clone w False)) False" 
-      using \<open>length (clone w False) = w\<close> by auto
-    then have " real (bits_to_nat (adc_helper i ([], clone w False))) \<le> i" using adc_helper_induct 
-      by (metis \<open>0 < w\<close> \<open>length (clone w False) = w\<close> \<open>real (bits_to_nat ([] @ clone w False)) \<le> i\<close> assms fst_eqD snd_eqD)
-      then have "real (bits_to_nat (adc w i)) \<le> i" 
-        by (simp add: adc_def)
-  }
-  {assume "w = 0"
-    then have "clone w False = []" 
-      by simp 
-    then have "real (bits_to_nat (adc_helper i ([], clone w False))) = real (bits_to_nat (adc_helper i ([], [])))" 
-      by simp
-    then have "... = 0" 
-      using \<open>bits_to_nat ([] @ clone w False) = backward_bits_to_nat (clone w False @ [])\<close> \<open>clone w False = []\<close> by auto
-    then have "real (bits_to_nat (adc_helper i ([], clone w False))) \<le> i" 
-      by (simp add: \<open>clone w False = []\<close> assms)
-      then have "real (bits_to_nat (adc w i)) \<le> i" 
-        by (simp add: adc_def)
-    }
-    thus ?thesis 
-      using \<open>0 < w \<Longrightarrow> real (bits_to_nat (adc w i)) \<le> i\<close> by blast
-qed
+    sorry
 
 (*theorem n_zero_adc_helper_not_greater_than_i: 
   assumes " i \<ge> 0"
