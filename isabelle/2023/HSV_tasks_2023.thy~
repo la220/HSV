@@ -642,48 +642,6 @@ next
 qed
 
 
-
-(*lemma remove_all_true_is_clone:
-  assumes "removeAll True l1 = l1"
-  shows "l1 = clone (length l1) False" using assms 
-proof (induct l1)
-  case Nil
-  then show ?case 
-    by simp
-next
-  case (Cons a l1) 
-  {assume "a = True"
-    then have "(removeAll True [a]) = []" 
-      by simp
-    have "removeAll True (Cons a l1) = (removeAll True [a]) @ removeAll True l1" 
-      by simp  
-  then have "... = removeAll True l1" 
-    using \<open>removeAll True [a] = []\<close> by blast
-  then have "... = l1" using assms 
-    by (metis Cons.prems \<open>removeAll True (a # l1) = removeAll True [a] @ removeAll True l1\<close> impossible_Cons length_removeAll_less_eq)
-  then have "... \<noteq> (Cons a l1)" 
-    by simp
-  with `removeAll True (a # l1) = a # l1` show False }
-  {assume "a = False"
-    then have "(removeAll True [a]) = []" 
-      by simp
-    have "removeAll True (Cons a l1) = (removeAll True [a]) @ removeAll True l1" 
-      by simp  
-  then have "... = removeAll True l1" 
-    using \<open>removeAll True [a] = []\<close> by blast
-  then have "... = l1" using assms 
-    by (metis Cons.prems \<open>removeAll True (a # l1) = removeAll True [a] @ removeAll True l1\<close> impossible_Cons length_removeAll_less_eq)
-  then have "... \<noteq> (Cons a l1)" 
-    by simp
-  with `removeAll True (a # l1) = a # l1` show False }
-  
-  then show ?case 
-  next
-    case False
-    then show ?thesis sorry
-  qed
-qed*)
-
 theorem "adc_helper_induct": 
   assumes "i \<ge> 0"
   assumes "length (snd p) > 0"
@@ -764,21 +722,16 @@ next
     by fastforce
 qed
 
-(*proof -
- have "real(bits_to_nat(clone n False)) = real(backward_bits_to_nat(rev (clone n False)))"
-    using bits_to_nat_def by auto
-  then have "... = real(backward_bits_to_nat(clone n False))" using rev_clone 
-    by metis
-  then have "... = real(backward_bits_to_nat([False] @ clone (n-1) False))"
-    by (metis Suc_pred' append_Cons append_Nil assms(2) clone.simps(2))
-  then have "... = 0" using bool_list_bit_shift 
-    by (metis append.right_neutral backward_bits_to_nat.simps(3) mult_0 of_nat_eq_0_iff)
-  then have "real(bits_to_nat([] @ clone n False)) \<le> i " 
-    by (simp add: \<open>real (backward_bits_to_nat (clone n False)) = real (backward_bits_to_nat ([False] @ clone (n - 1) False))\<close> \<open>real (bits_to_nat (clone n False)) = real (backward_bits_to_nat (rev (clone n False)))\<close> assms(1) rev_clone)
-  obtain b1 where "butlast (adc_helper i ([], clone n False)) = b1" 
+
+theorem clone_list_length: "length (clone n x) = n" proof(induct n)
+  case 0
+  then show ?case 
     by simp
-  then have "adc_helper i ([], clone n False) = adc_helper i (b1, clone (n-(n-1)) False)" sorry
-qed*)
+next
+  case (Suc n)
+  then show ?case 
+    by simp
+qed
 
 
 theorem
@@ -788,34 +741,42 @@ proof -
   have "real (bits_to_nat (adc w i)) = real (bits_to_nat (adc_helper i ([], clone w False)))" 
     using adc_def by auto 
   have "bits_to_nat ([] @ clone w False) = backward_bits_to_nat(clone w False @ [])" using rev_clone 
-    sorry
+    by (metis append.left_neutral append.right_neutral bits_to_nat_def) 
+  then have "... = 0" using bool_list_bit_shift 
+    using backward_bits_to_nat.simps(3) by presburger
+  then have "real(bits_to_nat ([] @ clone w False)) \<le> i"  
+    using \<open>bits_to_nat ([] @ clone w False) = backward_bits_to_nat (clone w False @ [])\<close> assms by force
+  {assume "w > 0"
+    have "length (clone w False) = w" using clone_list_length 
+      by metis
+    then have "... > 0" 
+      by (simp add: \<open>0 < w\<close>)
+    then have "clone w False = clone (length (clone w False)) False" 
+      using \<open>length (clone w False) = w\<close> by auto
+    then have " real (bits_to_nat (adc_helper i ([], clone w False))) \<le> i" using adc_helper_induct 
+      by (metis \<open>0 < w\<close> \<open>length (clone w False) = w\<close> \<open>real (bits_to_nat ([] @ clone w False)) \<le> i\<close> assms fst_eqD snd_eqD)
+      then have "real (bits_to_nat (adc w i)) \<le> i" 
+        by (simp add: adc_def)
+  }
+  {assume "w = 0"
+    then have "clone w False = []" 
+      by simp 
+    then have "real (bits_to_nat (adc_helper i ([], clone w False))) = real (bits_to_nat (adc_helper i ([], [])))" 
+      by simp
+    then have "... = 0" 
+      using \<open>bits_to_nat ([] @ clone w False) = backward_bits_to_nat (clone w False @ [])\<close> \<open>clone w False = []\<close> by auto
+    then have "real (bits_to_nat (adc_helper i ([], clone w False))) \<le> i" 
+      by (simp add: \<open>clone w False = []\<close> assms)
+      then have "real (bits_to_nat (adc w i)) \<le> i" 
+        by (simp add: adc_def)
+    }
+    thus ?thesis 
+      using \<open>0 < w \<Longrightarrow> real (bits_to_nat (adc w i)) \<le> i\<close> by blast
+qed
 
-(*theorem n_zero_adc_helper_not_greater_than_i: 
-  assumes " i \<ge> 0"
-  assumes "n = 0" 
-  assumes "bits_to_nat(r1 @ clone n False) \<le> i"
-  assumes "(l1, l2) = adc_step i (r1, clone n False)"
-  shows "real(bits_to_nat(l1 @ l2)) \<le> i" 
- 
-proof- 
-   have "bits_to_nat(r1 @ []) \<le> i" 
-     using assms(2) assms(3) by auto
-   then have "bits_to_nat(r1) \<le> i"
-     by simp
-   moreover have "(l1, l2) = adc_step i (r1, [])" 
-     using assms(2) assms(4) by auto 
-   then have "l2 = []" 
-     by simp
-    then have "l1 = r1 @ [(real(bits_to_nat(r1 @ [True])) \<le> i)]" 
-      using \<open>(l1, l2) = adc_step (real i) (r1, [])\<close> by auto
-    then have "real(bits_to_nat(l1)) \<le> i " try
-
-qed : Don't need to prove as n=0 is exit condition of adc_helper*)
 
 
-
-
-(*section \<open> Task 5: Fermat's Last Theorem. \<close>
+section \<open> Task 5: Fermat's Last Theorem. \<close>
 
 text \<open> This is (a version of) Fermat's right-triangle theorem. (In fact, it is believed to 
        be the only one of his theorems for which his original complete proof survives.) The
@@ -837,8 +798,228 @@ text \<open> Your task is to prove Fermat's Last Theorem in the special case whe
        The theorem states that if x, y, and z are all positive integers, then x^4 + y^4 is 
        never equal to z^4. You are advised to use the lemma above to help you! \<close>
 
+thm fermat_right_triangle[of "x" "y" "z^2"]
+
+lemma root_right_traingle:
+  fixes a::nat and b::nat and c::nat
+  assumes "a*b*c > 0"
+  assumes " odd a"
+  assumes "gcd a b = 1"
+  shows "root 2 (a^4 + b^4) \<noteq> c"
+proof -
+  have "c^2 \<noteq> a^4 + b^4" using fermat_right_triangle and assms 
+    by metis 
+  then have  "root 2 (c^2) \<noteq> root 2 (a^4 + b^4)" 
+    by (meson of_nat_eq_iff pos2 real_root_eq_iff)
+  then have  "c \<noteq> root 2 (a^4 + b^4)" using real_root_power_cancel 
+    by simp
+  then show ?thesis 
+    by simp
+qed
+
+(*lemma root_right_triangle_not_nat:
+  fixes a::nat and b::nat
+  assumes "a*b > 0"
+  assumes "odd a"
+  assumes "gcd a b = 1"
+  shows "root 2 (a^4 + b^4) \<notin> \<nat>"
+proof -
+
+ assume "root 2 (a^4 + b^4) \<in> \<nat>"
+  obtain c::nat where "c = root 2 (a^4 + b^4)" 
+    by (metis Nats_cases \<open>root 2 (real (a ^ 4 + b ^ 4)) \<in> \<nat>\<close>)
+
+  {assume a1: "c > 0"
+    then have "c \<noteq> root 2 (a^4 + b^4)" using root_right_traingle and a1 and assms 
+    by force}
+  {assume a2: "c = 0"
+    then have "c \<noteq> root 2 (a^4 + b^4)" using assms and a2 
+      by (metis (no_types, lifting) add_eq_0_iff_both_eq_0 even_power even_zero of_nat_0_eq_iff pos2 real_root_eq_0_iff) }
+  {assume a3: "c < 0"
+      then have "c \<noteq> root 2 (a^4 + b^4)" using assms and a3 
+        by simp }
+    then have "c \<noteq> root 2 (a^4 + b^4)"  using \<open>c < 0 \<Longrightarrow> real c \<noteq> root 2 (real (a ^ 4 + b ^ 4))\<close> 
+                        and \<open>c = 0 \<Longrightarrow> real c \<noteq> root 2 (real (a ^ 4 + b ^ 4))\<close> 
+                        and  \<open>c > 0 \<Longrightarrow> real c \<noteq> root 2 (real (a ^ 4 + b ^ 4))\<close> 
+      by blast
+    with `c = root 2 (a^4 + b^4)` show False  
+      sorry*)
+
+(*theorem fermat4: 
+  "\<And>x y z::nat. x*y*z > 0 \<Longrightarrow> x^4 + y^4 \<noteq> z^4"
+proof (rule ccontr)
+  fix x::nat and y::nat and z::nat
+  assume a1: "x > 0" and a2: "y > 0" and "z > 0"
+  obtain g::nat where "g = gcd x y" 
+      by simp
+  obtain s::nat where "s = x/g" using \<open>g = gcd x y\<close> 
+      using real_of_nat_div by blast
+  obtain t::nat where "t = y/g" using \<open>g = gcd x y\<close> 
+    using real_of_nat_div by blast
+  
+qed*)
+
+
 theorem fermat4: 
   "\<And>x y z::nat. x*y*z > 0 \<Longrightarrow> x^4 + y^4 \<noteq> z^4"
-  oops
+proof (rule ccontr)
+  fix x::nat and y::nat and z::nat
+  assume a1: "x*y*z > 0"  
+    assume a2: "\<not> x ^ 4 + y ^ 4 \<noteq> z ^ 4"
+    obtain g::nat where "g = gcd x y" 
+      by simp
+    obtain s::nat where "s = x/g" using \<open>g = gcd x y\<close> 
+      using real_of_nat_div by blast
+    obtain t::nat where "t = y/g" using \<open>g = gcd x y\<close> 
+      using real_of_nat_div by blast
 
-end*)
+    have "gcd s t = 1" using \<open>g = gcd x y\<close> and \<open>t = y/g\<close> and \<open>s = x/g\<close> 
+      by (metis a1 coprime_imp_gcd_eq_1 div_mult_self_is_m gcd_coprime_exists gcd_dvd1 gcd_dvd2 gcd_pos_nat mult_eq_0_iff of_nat_eq_iff real_of_nat_div) 
+    then have "s^4 = (x/g)^4" using \<open>s = x/g\<close> 
+      by simp
+    then have x_power_divide: "... = (x^4)/(g^4)" 
+      by (simp add: power_divide)
+    have "t^4 = (y/g)^4" using \<open>t = y/g\<close> 
+      by simp
+    then have y_power_divide: "... = (y^4)/(g^4)" 
+      by (simp add: power_divide)
+    then have "x^4 + y^4 = ((g^4)/(g^4))*(x^4 + y^4)" using \<open>g = gcd x y\<close> 
+      by simp
+    then have "... = (g^4)*(((x^4)/(g^4)) + ((y^4)/(g^4)))" 
+      by (metis add_divide_distrib mult_of_nat_commute of_nat_add times_divide_eq_right) 
+    then have "... = (g^4)*(s^4 + t^4)" using x_power_divide and y_power_divide 
+      using \<open>real (s ^ 4) = (real x / real g) ^ 4\<close> \<open>real (t ^ 4) = (real y / real g) ^ 4\<close> by fastforce
+    then have "z^4 = (g^4)*(s^4 + t^4)" using a2 
+      using \<open>real (g ^ 4) / real (g ^ 4) * real (x ^ 4 + y ^ 4) = real (g ^ 4) * (real (x ^ 4) / real (g ^ 4) + real (y ^ 4) / real (g ^ 4))\<close> \<open>real (x ^ 4 + y ^ 4) = real (g ^ 4) / real (g ^ 4) * real (x ^ 4 + y ^ 4)\<close> by linarith
+   then have "root 4 (z^4) = root 4 ((g^4)*(s^4 + t^4))" 
+      by simp
+   have "root 4 (z^4) = z" 
+      by (simp add: real_root_power_cancel) 
+    then have "z = root 4 ((g^4)*(s^4 + t^4))" using  \<open>z ^ 4 = g ^ 4 * (s ^ 4 + t ^ 4)\<close> 
+      by simp
+    then have "... = (root 4 g^4)*(root 4 (s^4 + t^4))" 
+      by (simp add: numeral_Bit0 real_root_mult) 
+    then have "... = g*(root 4 (s^4 + t^4))" using real_root_power_cancel 
+      by simp
+    then have s_t_roots: "... = g*(root 2 (root 2 (s^4 + t^4)))" 
+      by (metis (mono_tags, lifting) mult_2 numeral_Bit0 real_root_mult_exp)
+    have sub_contradiction: "\<And>c::nat. c*s*t > 0 \<Longrightarrow> root 2 (s^4 + t^4) \<noteq> c" 
+    proof (rule ccontr)
+      fix c::nat
+      assume sub_a1: "c*s*t > 0"
+      assume sub_a2: "\<not> root 2 (s^4 + t^4) \<noteq> c"
+      {assume "odd s"
+        then have "\<not> root 2 (s^4 + t^4) \<noteq> c \<Longrightarrow> False" using root_right_traingle and sub_a1 and sub_a2 and \<open>gcd s t = 1\<close> 
+          by simp
+      }
+      then have odd_s_false: "odd s \<Longrightarrow> \<not> root 2 (s^4 + t^4) \<noteq> c \<Longrightarrow> False" 
+        by simp
+      {assume "odd t"
+        then have "\<not> root 2 (t^4 + s^4) \<noteq> c \<Longrightarrow> False" using root_right_traingle and sub_a1 and sub_a2 and \<open>gcd s t = 1\<close> 
+          by (simp add: gcd.commute)
+      }
+      then have odd_t_false: "odd t \<Longrightarrow> \<not> root 2 (s^4 + t^4) \<noteq> c \<Longrightarrow> False" 
+        by (smt (verit) of_nat_add)
+      then have "\<not> root 2 (t^4 + s^4) \<noteq> c \<Longrightarrow> False" using odd_s_false and odd_t_false and \<open>gcd s t = 1\<close> and sub_a2 
+        by fastforce
+      thus ?thesis
+      qed
+
+  (*have "z\<in>\<nat>" 
+    by (metis Nats_0 Nats_cases nat_induct of_nat_Suc of_nat_in_Nats plus_1_eq_Suc)
+    then have "z^2 \<in> \<nat>" 
+      by (simp add: power2_eq_square)  
+  {assume "odd x" and "gcd x y = 1"
+    then have "x^4 + y^4 \<noteq> (z^2)^2" using fermat_right_triangle[of "x" "y" "z^2"] and a1 by simp   
+    then have "x^4 + y^4 \<noteq> z^4" 
+      by simp
+  }
+  {assume "odd y" and "gcd x y = 1"
+    then have "x^4 + y^4 \<noteq> (z^2)^2" using fermat_right_triangle[of "y" "x" "z^2"] and a1 and  gcd.commute 
+      by (metis (no_types, opaque_lifting) add.commute less_nat_zero_code mult.commute mult.left_commute mult_eq_0_iff mult_zero_left neq0_conv power2_eq_square) 
+    then have "x^4 + y^4 \<noteq> z^4" 
+      by simp
+  }
+  { assume "gcd x y \<noteq> 1"
+    then have "gcd s t = 1" using \<open>g = gcd x y\<close> and \<open>t = y/g\<close> and \<open>s = x/g\<close> 
+      by (metis a1 coprime_imp_gcd_eq_1 div_mult_self_is_m gcd_coprime_exists gcd_dvd1 gcd_dvd2 gcd_pos_nat mult_eq_0_iff of_nat_eq_iff real_of_nat_div) 
+    then have "s^4 = (x/g)^4" using \<open>s = x/g\<close> 
+      by simp
+    then have x_power_divide: "... = (x^4)/(g^4)" 
+      by (simp add: power_divide)
+    have "t^4 = (y/g)^4" using \<open>t = y/g\<close> 
+      by simp
+    then have y_power_divide: "... = (y^4)/(g^4)" 
+      by (simp add: power_divide)
+    then have "x^4 + y^4 = ((g^4)/(g^4))*(x^4 + y^4)" using \<open>g = gcd x y\<close> 
+      by simp
+    then have "... = (g^4)*(((x^4)/(g^4)) + ((y^4)/(g^4)))" 
+      by (metis add_divide_distrib mult_of_nat_commute of_nat_add times_divide_eq_right) 
+    then have "... = (g^4)*(s^4 + t^4)" using x_power_divide and y_power_divide 
+      using \<open>real (s ^ 4) = (real x / real g) ^ 4\<close> \<open>real (t ^ 4) = (real y / real g) ^ 4\<close> by fastforce
+    then have "z^4 = (g^4)*(s^4 + t^4)" using a2 
+      using \<open>real (g ^ 4) / real (g ^ 4) * real (x ^ 4 + y ^ 4) = real (g ^ 4) * (real (x ^ 4) / real (g ^ 4) + real (y ^ 4) / real (g ^ 4))\<close> \<open>real (x ^ 4 + y ^ 4) = real (g ^ 4) / real (g ^ 4) * real (x ^ 4 + y ^ 4)\<close> by linarith
+    then have "root 4 (z^4) = root 4 ((g^4)*(s^4 + t^4))" 
+      by simp
+   have "root 4 (z^4) = z" 
+      by (simp add: real_root_power_cancel) 
+    then have "z = root 4 ((g^4)*(s^4 + t^4))" using  \<open>z ^ 4 = g ^ 4 * (s ^ 4 + t ^ 4)\<close> 
+      by simp
+    then have "... = (root 4 g^4)*(root 4 (s^4 + t^4))" 
+      by (simp add: numeral_Bit0 real_root_mult) 
+    then have "... = g*(root 4 (s^4 + t^4))" using real_root_power_cancel 
+      by simp
+    then have s_t_roots: "... = g*(root 2 (root 2 (s^4 + t^4)))" 
+      by (metis (mono_tags, lifting) mult_2 numeral_Bit0 real_root_mult_exp)
+    have c_root: "c = root 2 (s^4 + t^4)" using a3 
+      by (metis not_gr_zero of_nat_0_eq_iff of_nat_0_less_iff of_nat_power power_zero_numeral real_root_pow_pos real_root_power real_root_zero zero_less_numeral)
+   (* have "z = g*(root 2 (root 2 (c^2)))" using a3 and s_t_roots
+      using \<open>root 4 (real (g ^ 4 * (s ^ 4 + t ^ 4))) = root 4 (real g) ^ 4 * root 4 (real (s ^ 4 + t ^ 4))\<close> \<open>root 4 (real (z ^ 4)) = real z\<close> \<open>z ^ 4 = g ^ 4 * (s ^ 4 + t ^ 4)\<close> power2_eq_square by force
+    *)
+    then have "z = g*(root 2 c)" using a3 and s_t_roots and c_root 
+      using \<open>root 4 (real (g ^ 4 * (s ^ 4 + t ^ 4))) = root 4 (real g) ^ 4 * root 4 (real (s ^ 4 + t ^ 4))\<close> \<open>root 4 (real (z ^ 4)) = real z\<close> \<open>root 4 (real g) ^ 4 * root 4 (real (s ^ 4 + t ^ 4)) = real g * root 4 (real (s ^ 4 + t ^ 4))\<close> \<open>z ^ 4 = g ^ 4 * (s ^ 4 + t ^ 4)\<close> by fastforce
+    then have "c > 0" using c_root 
+      using a1 gr_zeroI by fastforce
+    have "z > 0" using a1 and a2 
+      by simp
+    then have "x*y > 0" using a1 
+      by simp
+    then have "s*t > 0" using \<open>s = x/g\<close>  and \<open>t = y/g\<close> 
+      by (metis (no_types, lifting) \<open>g = gcd x y\<close> divide_eq_0_iff gcd_pos_nat gr0I mult_is_0 of_nat_eq_0_iff)
+    then have "c*s*t > 0" 
+      by (simp add: \<open>0 < c\<close>)
+    {assume "odd s"
+        then have "c \<noteq> root 2 (s^4 + t^4)" using root_right_traingle and \<open>gcd s t = 1\<close> and \<open>c*s*t > 0\<close> 
+          by (metis \<open>0 < c\<close> \<open>0 < s * t\<close> mult_pos_pos)
+        then have "z \<noteq> g*(root 2 c)" 
+          by (simp add: c_root) 
+        then have "z \<noteq> root 4 ((g^4)*(s^4 + t^4))" 
+          by (simp add: \<open>real z = real g * root 2 (real c)\<close>)
+        then have "z^4 \<noteq> x^4 + y^4" 
+          using \<open>real z = real g * root 2 (real c)\<close> \<open>real z \<noteq> real g * root 2 (real c)\<close> by fastforce
+      }
+    {assume "odd t"
+      then have "c \<noteq> root 2 (s^4 + t^4)" using root_right_traingle[of "t" "s" "c"] and \<open>gcd s t = 1\<close> and \<open>c*s*t > 0\<close> and \<open>0 < c\<close> and \<open>0 < s * t\<close> 
+        by (simp add: c_root gcd.commute)
+        then have "z \<noteq> g*(root 2 c)" 
+          by (simp add: c_root) 
+        then have "z \<noteq> root 4 ((g^4)*(s^4 + t^4))" 
+          by (simp add: \<open>real z = real g * root 2 (real c)\<close>)
+        then have "z^4 \<noteq> x^4 + y^4" 
+          using \<open>real z = real g * root 2 (real c)\<close> \<open>real z \<noteq> real g * root 2 (real c)\<close> by fastforce
+      }
+     then have "z^4 \<noteq> x^4 + y^4" 
+       using \<open>gcd s t = 1\<close> \<open>odd s \<Longrightarrow> z ^ 4 \<noteq> x ^ 4 + y ^ 4\<close> by force
+   }
+   then have "z^4 \<noteq> x^4 + y^4" using \<open>gcd x y \<noteq> 1 \<Longrightarrow> z ^ 4 \<noteq> x ^ 4 + y ^ 4\<close> 
+       and \<open>odd x \<Longrightarrow> gcd x y = 1 \<Longrightarrow> x ^ 4 + y ^ 4 \<noteq> z ^ 4\<close>
+       and \<open>odd y \<Longrightarrow> gcd x y = 1 \<Longrightarrow> x ^ 4 + y ^ 4 \<noteq> z ^ 4\<close> 
+     by fastforce
+
+   then have "0 < x*y*z \<Longrightarrow> \<not> x ^ 4 + y ^ 4 \<noteq> z ^ 4  \<Longrightarrow> False" 
+     by simp
+   term ?thesis
+   then show "z^4 \<noteq> x^4 + y^4"*)
+ qed
+
+
