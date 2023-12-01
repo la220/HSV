@@ -283,9 +283,6 @@ next
 qed
 
 
-theorem larger_of_two_bool_lists: "\<lbrakk> length l1 = length l2 ; backward_bits_to_nat(l1) > backward_bits_to_nat(l2)  \<rbrakk> \<Longrightarrow> 
- backward_bits_to_nat(l3 @ l1) > backward_bits_to_nat(l3 @ l2)" sorry
-
 theorem value_of_true_list: "backward_bits_to_nat(clone n True) = (2^n) - 1 " 
   proof(induct n)
     case 0
@@ -817,6 +814,39 @@ proof -
     by simp
 qed
 
+lemma nat_multiplication:
+  fixes a::nat and b::nat and c
+  assumes "a = b*c"
+  shows "c \<in> \<nat>" using assms 
+proof -
+  obtain nn :: "(nat \<Rightarrow> bool) \<Rightarrow> nat" where
+    f1: "\<forall>p n. p n \<or> \<not> p (Suc (nn p)) \<and> p (nn p) \<or> \<not> p 0"
+    by (metis (no_types) nat_induct)
+  obtain nna :: "nat \<Rightarrow> nat" where
+    "nn (\<lambda>n. n \<in> \<nat>) = of_nat (nna (nn (\<lambda>n. n \<in> \<nat>)))"
+    by auto
+  then have "of_nat (Suc (nna (nn (\<lambda>n. n \<in> \<nat>)))) = Suc (nn (\<lambda>n. n \<in> \<nat>))"
+    by force
+  then have "Suc (nn (\<lambda>n. n \<in> \<nat>)) \<in> \<nat>"
+    by (smt (z3) of_nat_in_Nats)
+  then show ?thesis
+    using f1 by (meson Nats_0)
+qed
+
+lemma nat_multiplication_2:
+  fixes a and b and c
+  assumes "a = b*c"
+  assumes "a \<in> \<nat>"
+  assumes "b \<in> \<nat>"
+  shows "c \<in> \<nat>" using assms try
+
+lemma nat_multiplication_inv:
+  fixes a and b and c
+  assumes "a \<in> \<nat>"
+  assumes "b \<in> \<nat>"
+  assumes "c \<notin> \<nat>"
+  shows "a \<noteq> b*c" using assms 
+
 (*lemma root_right_triangle_not_nat:
   fixes a::nat and b::nat
   assumes "a*b > 0"
@@ -868,7 +898,115 @@ proof (rule ccontr)
     assume a2: "\<not> x ^ 4 + y ^ 4 \<noteq> z ^ 4"
     obtain g::nat where "g = gcd x y" 
       by simp
-    obtain s::nat where "s = x/g" using \<open>g = gcd x y\<close> 
+    then have "g \<in> \<nat>" 
+    proof -
+      obtain nn :: "(nat \<Rightarrow> bool) \<Rightarrow> nat" where
+        f1: "\<forall>p n. p n \<or> \<not> p (Suc (nn p)) \<and> p (nn p) \<or> \<not> p 0"
+        using nat_induct by moura
+      then have "nn (\<lambda>n. n \<in> \<nat>) \<in> \<nat>"
+        by (metis Nats_0)
+      then show ?thesis
+        using f1 by (metis (full_types) Nats_0 Nats_1 Nats_add plus_1_eq_Suc)
+    qed
+    then have  "g^2 \<in> \<nat>"      
+      by (simp add: power2_eq_square)
+    have "z\<in>\<nat>" 
+      by (metis Nats_0 Nats_cases nat_induct of_nat_Suc of_nat_in_Nats plus_1_eq_Suc)
+    then have  "z^2 \<in> \<nat>"      
+      by (simp add: power2_eq_square)
+
+    obtain s::nat where "s = x div g" using \<open>g = gcd x y\<close>  
+      by simp
+    obtain t::nat where "t = y div g" using \<open>g = gcd x y\<close>  
+      by simp
+    have "gcd s t = 1" using \<open>g = gcd x y\<close> and \<open>t = y div g\<close> and \<open>s = x div g\<close> 
+      by (metis a1 coprime_imp_gcd_eq_1 div_gcd_coprime mult_eq_0_iff not_gr_zero) 
+    then have "s^4 = (x div g)^4" 
+      by (simp add: \<open>s = x div g\<close>)
+  then have x_power_divide: "... = x^4 div g^4" 
+    using \<open>g = gcd x y\<close> div_power by blast
+    then have "t^4 = (y div g)^4" 
+      by (simp add: \<open>t = y div g\<close>)
+  then have y_power_divide: "... = y^4 div g^4" 
+    using \<open>g = gcd x y\<close> div_power by blast
+  then have "x^4 + y^4 = (g^4 div g^4)*(x^4 + y^4)" 
+    using \<open>g = gcd x y\<close> a1 by force
+  then have "... = (g^4)*((x^4 div g^4) + (y^4 div g^4))" 
+    by (metis \<open>g = gcd x y\<close> add_mult_distrib2 dvd_mult_div_cancel gcd_nat.cobounded1 gcd_nat.cobounded2 pow_divides_pow_iff zero_less_numeral)
+  then have "... = (g^4)*(s^4 + t^4)" using x_power_divide and y_power_divide 
+    using \<open>s = x div g\<close> \<open>t = y div g\<close> by presburger
+ then have "z^4 =  (g^4)*(s^4 + t^4)" using a2 
+    using \<open>g ^ 4 div g ^ 4 * (x ^ 4 + y ^ 4) = g ^ 4 * (x ^ 4 div g ^ 4 + y ^ 4 div g ^ 4)\<close> \<open>x ^ 4 + y ^ 4 = g ^ 4 div g ^ 4 * (x ^ 4 + y ^ 4)\<close> by presburger
+
+  then have "z^4 div g^4 = (s^4 + t^4)" 
+    by (simp add: \<open>s = x div g\<close> \<open>t = y div g\<close>)
+  then obtain d::nat where "d = z^2 div g^2" 
+    by simp 
+
+   have "root 2 z^4 = root 2 (g^4*(s^4 + t^4))" 
+    by (metis \<open>z ^ 4 = g ^ 4 * (s ^ 4 + t ^ 4)\<close> of_nat_power_eq_of_nat_cancel_iff pos2 real_root_power)
+  then have "z^2 = root 2 (g^4*(s^4 + t^4))" 
+    by (metis (no_types, lifting) a1 nat_0_less_mult_iff num_double of_nat_0_less_iff of_nat_power pos2 power_mult_numeral real_root_pow_pos)
+  then have "z^2 = (root 2 g^4)*(root 2 (s^4 + t^4))" 
+    by (simp add: real_root_mult real_root_power)
+  then have "z^2 = (g^2)*(root 2 (s^4 + t^4))" 
+    by (smt (verit, best) \<open>g = gcd x y\<close> a1 gcd_pos_nat mult_not_zero numeral_Bit0 numeral_plus_numeral of_nat_0_less_iff of_nat_mult pos2 power2_eq_square power_add_numeral real_root_pow_pos zero_less_iff_neq_zero)
+
+  have z_sq_nat: "z^2 = nat (z^2)" 
+    by linarith
+  have g_sq_nat: "g^2 = nat (g^2)" 
+    by linarith
+
+  {assume "(root 2 (s^4 + t^4)) \<in> \<nat>"
+  }
+  {assume "(root 2 (s^4 + t^4)) \<notin> \<nat>"
+    then obtain h where "h = root 2 (s^4 + t^4)" 
+      by simp
+    then have "z^2 = g^2 * h" 
+      using \<open>real (z\<^sup>2) = real (g\<^sup>2) * root 2 (real (s ^ 4 + t ^ 4))\<close> by auto
+    have "h \<notin> \<nat>" 
+      using \<open>h = root 2 (real (s ^ 4 + t ^ 4))\<close> \<open>root 2 (real (s ^ 4 + t ^ 4)) \<notin> \<nat>\<close> by auto
+    obtain z_sq::nat where "z_sq = z^2" 
+      by simp
+    obtain g_sq::nat where "g_sq = g^2" 
+      by simp
+
+    (*then have "z^2 \<noteq> (g^2)*(root 2 (s^4 + t^4))" using z_sq_nat and g_sq_nat and nat_multiplication_inv and \<open>g^2 \<in> \<nat>\<close> and \<open>z^2 \<in> \<nat>\<close>*)
+  }
+
+  
+
+  
+(*
+  obtain v::nat where "v = gcd z g" 
+    by simp 
+  then have "z^4 / v^4 = (g^4 / v^4)*(s^4 + t^4)" using \<open>z^4 =  (g^4)*(s^4 + t^4)\<close> 
+    by simp
+  then have "z^4 / v^4 = (g^4/v^4)*s^4 + (g^4/v^4)*t^4" 
+    by (smt (verit) \<open>g = gcd x y\<close> \<open>v = gcd z g\<close> a2 divide_eq_0_iff divide_self gcd_add1 gcd_exp gcd_left_idem mult_cancel_right1 mult_eq_0_iff of_nat_add)
+  obtain k::nat where "k = z / v" using \<open>v = gcd z g\<close>  
+    using real_of_nat_div by blast
+  then have "k^4 = (g^4/v^4)*s^4 + (g^4/v^4)*t^4" using \<open>z^4 / v^4 = (g^4/v^4)*s^4 + (g^4/v^4)*t^4\<close> 
+    by (simp add: power_divide)
+    obtain l::nat where "l = k^2" 
+      by simp
+    then have "l^2 = (g^4/v^4)*s^4 + (g^4/v^4)*t^4" using \<open>k^4 = (g^4/v^4)*s^4 + (g^4/v^4)*t^4\<close> 
+      by simp
+    obtain p::nat where p_def: "p = g / v" using \<open>v = gcd z g\<close>  
+      using real_of_nat_div by blast
+    obtain r::nat where r_def: "r = p*s" 
+      by simp
+    obtain f::nat where f_def: "f = p*t" 
+      by simp
+    have "l^2 = (p^4)*s^4 + (p^4)*t^4" using \<open>l^2 = (g^4/v^4)*s^4 + (g^4/v^4)*t^4\<close> and p_def 
+      by (metis (no_types, opaque_lifting) of_nat_add of_nat_mult of_nat_power_eq_of_nat_cancel_iff power_divide)
+    then have "l^2 = r^4 + f^4" using r_def and f_def 
+      by algebra
+    have "gcd r f = p" using \<open>gcd s t = 1\<close> and r_def and f_def 
+      by (metis gcd_mult_distrib_nat mult.right_neutral)*)
+
+
+ (*  obtain s::nat where "s = x/g" using \<open>g = gcd x y\<close>
       using real_of_nat_div by blast
     obtain t::nat where "t = y/g" using \<open>g = gcd x y\<close> 
       using real_of_nat_div by blast
@@ -903,8 +1041,20 @@ proof (rule ccontr)
       by simp
     then have s_t_roots: "... = g*(root 2 (root 2 (s^4 + t^4)))" 
       by (metis (mono_tags, lifting) mult_2 numeral_Bit0 real_root_mult_exp)
-    fix c::nat
-    have sub_contradiction: "c*s*t > 0 \<Longrightarrow> root 2 (s^4 + t^4) \<noteq> c" 
+    then have "z = g*(root 2 (root 2 (s^4 + t^4)))" 
+      using \<open>real z = root 4 (real (g ^ 4 * (s ^ 4 + t ^ 4)))\<close> \<open>root 4 (real (g ^ 4 * (s ^ 4 + t ^ 4))) = root 4 (real g) ^ 4 * root 4 (real (s ^ 4 + t ^ 4))\<close> \<open>root 4 (real g) ^ 4 * root 4 (real (s ^ 4 + t ^ 4)) = real g * root 4 (real (s ^ 4 + t ^ 4))\<close> by linarith
+    then have "z^2 = (g*(root 2 (root 2 (s^4 + t^4))))^2"
+      by simp
+    then have "z^2 = (g^2)*(root 2 (s^4 + t^4))" 
+      by (simp add: power_mult_distrib real_root_lt_0_iff real_root_pow_pos2)
+    have "root 2 (root 2 (s^4 + t^4)) = z / g" using \<open>z = g*(root 2 (root 2 (s^4 + t^4)))\<close> 
+      using a1 by fastforce
+    (*then have "root 2 (root 2 (s^4 + t^4)) = z div g" try*)
+    (*have "(root 2 (s^4 + t^4)) \<in> \<nat>" using \<open>z^2 = (g^2)*(root 2 (s^4 + t^4))\<close> and \<open>z^2 \<in> \<nat>\<close>  and \<open>g^2 \<in> \<nat>\<close> try   *)
+    obtain d::nat where a4: "d = root 2 (s^4 + t^4)" sorry
+    have "z^2 = (g^2)*d" using a4
+      by (metis \<open>real (z\<^sup>2) = real (g\<^sup>2) * root 2 (real (s ^ 4 + t ^ 4))\<close> of_nat_eq_iff of_nat_mult)
+  (*  have sub_contradiction: "c*s*t > 0 \<Longrightarrow> root 2 (s^4 + t^4) \<noteq> c"
     proof (rule ccontr)
       assume sub_a1: "c*s*t > 0"
       assume sub_a2: "\<not> root 2 (s^4 + t^4) \<noteq> c"
@@ -922,10 +1072,11 @@ proof (rule ccontr)
         by (smt (verit) of_nat_add)
       then have "\<not> root 2 (s^4 + t^4) \<noteq> c \<Longrightarrow> False" using odd_s_false and odd_t_false and \<open>gcd s t = 1\<close> and sub_a2 
         by fastforce
-      thus ?thesis
-      qed
+      thus False 
+        using sub_a2 by auto 
+      qed*)
 
-   (* have sub_contradiction: "\<And>c::nat. c*s*t > 0 \<Longrightarrow> root 2 (s^4 + t^4) \<noteq> c" 
+  have sub_contradiction: "\<And>c::nat. c*s*t > 0 \<Longrightarrow> root 2 (s^4 + t^4) \<noteq> c" 
     proof (rule ccontr)
       fix c::nat
       assume sub_a1: "c*s*t > 0"
@@ -944,10 +1095,40 @@ proof (rule ccontr)
         by (smt (verit) of_nat_add)
       then have "\<not> root 2 (t^4 + s^4) \<noteq> c \<Longrightarrow> False" using odd_s_false and odd_t_false and \<open>gcd s t = 1\<close> and sub_a2 
         by fastforce
-      thus ?thesis
-      qed*)
+      thus False 
+        by (metis add.commute sub_a2)
+    qed
 
-  (*have "z\<in>\<nat>" 
+    have "s > 0" using \<open>s = x/g\<close>  and a1 
+      using \<open>gcd s t = 1\<close> \<open>real t = real y / real g\<close> divide_eq_0_iff zero_less_iff_neq_zero by fastforce
+    have "t > 0" using \<open>t = y/g\<close>  and a1 
+      using \<open>gcd s t = 1\<close> \<open>real s = real x / real g\<close> divide_eq_0_iff zero_less_iff_neq_zero by fastforce
+    have "d > 0" using a4 and \<open>s > 0\<close> and \<open>t > 0\<close> 
+    proof -
+      have "real (s ^ 4 + t ^ 4) \<noteq> 0"
+        by (metis \<open>0 < s\<close> of_nat_less_iff of_nat_power of_nat_zero_less_power_iff power_zero_numeral trans_less_add1 zero_less_power2)
+      then have "real d \<noteq> 0"
+        by (simp add: a4)
+      then show ?thesis
+        by linarith
+    qed 
+    have "d \<noteq> root 2 (s^4 + t^4)" using \<open>s > 0\<close> and \<open>t > 0\<close>  and \<open>d > 0\<close> and sub_contradiction 
+      by (metis nat_0_less_mult_iff)
+    then have "z^2 \<noteq> (g^2)*d" 
+      using a4 by auto 
+    then have "z^2 \<noteq> (g^2)*(root 2 (s^4 + t^4))" 
+      using \<open>z\<^sup>2 = g\<^sup>2 * d\<close> by auto
+    thus False 
+      using \<open>z\<^sup>2 = g\<^sup>2 * d\<close> \<open>z\<^sup>2 \<noteq> g\<^sup>2 * d\<close> by blast*)
+
+
+
+
+
+
+ (* fix c::nat
+  assume a3: "c^2 = s^4 + t^4"
+  have "z\<in>\<nat>" 
     by (metis Nats_0 Nats_cases nat_induct of_nat_Suc of_nat_in_Nats plus_1_eq_Suc)
     then have "z^2 \<in> \<nat>" 
       by (simp add: power2_eq_square)  
@@ -1041,7 +1222,7 @@ proof (rule ccontr)
    then have "0 < x*y*z \<Longrightarrow> \<not> x ^ 4 + y ^ 4 \<noteq> z ^ 4  \<Longrightarrow> False" 
      by simp
    term ?thesis
-   then show "z^4 \<noteq> x^4 + y^4"*)
+   then show False *)
  qed
 
 
